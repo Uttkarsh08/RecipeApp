@@ -73,6 +73,7 @@ dependencies {
     annotationProcessor("androidx.room:room-compiler:2.6.1") // Replace with actual version of libs.androidx.room.compiler
     kapt("androidx.room:room-compiler:2.6.1") // Replace with actual version of libs.androidx.room.compiler
     implementation("androidx.room:room-ktx:2.6.1") // Replace with actual version of libs.androidx.room.ktx
+    implementation("androidx.room:room-paging:2.6.1")
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7") // Replace with actual version of libs.androidx.lifecycle.runtime.compose
 

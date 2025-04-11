@@ -1,8 +1,10 @@
 package com.example.recipeapp
 
 import android.app.Application
-import com.example.recipeapp.data.api.MealApiService
+import androidx.room.Room
+import com.example.recipeapp.data.api.RecipeApiService
 import com.example.recipeapp.data.api.RetrofitHelper
+import com.example.recipeapp.data.local.RecipeDB
 import com.example.recipeapp.domain.repository.RecipeRepository
 
 class RecipeApplication: Application() {
@@ -14,7 +16,8 @@ class RecipeApplication: Application() {
     }
 
     fun initialize(){
-        val service: MealApiService = RetrofitHelper.getInstance().create(MealApiService::class.java)
-        repository = RecipeRepository(service)
+        val service: RecipeApiService = RetrofitHelper.getInstance().create(RecipeApiService::class.java)
+        val database = Room.databaseBuilder(applicationContext, RecipeDB::class.java, "recipe_database").fallbackToDestructiveMigration().build()
+        repository = RecipeRepository(service, database)
     }
 }

@@ -47,7 +47,7 @@ fun RecipeDetailScreen(viewModel: RecipeViewModel, navController: NavController,
 
 
     LaunchedEffect(key1 = recipeId) {
-        viewModel.fetchRecipeById(recipeId)
+        viewModel.fetchRecipeById(recipeId, context)
     }
 
     Column(

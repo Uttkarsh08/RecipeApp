@@ -1,10 +1,14 @@
 package com.example.recipeapp.presentation.ui
 
+import android.content.Context
+import android.graphics.Color
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,8 +18,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,84 +37,87 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.paging.LoadState
+import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.example.recipeapp.domain.model.Recipe
 import com.example.recipeapp.presentation.navigation.Screens
 import com.example.recipeapp.presentation.viewmodel.RecipeViewModel
+import com.example.recipeapp.utils.NetworkUtil.isNetworkAvailable
 import com.example.recipeapp.utils.RecipeListState
+import kotlinx.coroutines.flow.Flow
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: RecipeViewModel, navController: NavController){
+fun HomeScreen(
+    viewModel: RecipeViewModel,
+    navController: NavController
+) {
+    val context = LocalContext.current
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val isOnline = remember { isNetworkAvailable(context) }
 
-    val recipes = viewModel.pagedRecipes.collectAsLazyPagingItems()
-    var searchQuery = viewModel.searchQuery.collectAsState().value
+    // All recipes flow is already stateIn'd inside ViewModel
+    val allRecipes = viewModel.allRecipes.collectAsLazyPagingItems()
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "Recipes",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                viewModel.updateSearchQuery(searchQuery)
-                            },
-                            placeholder = { Text("Search recipes...") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(end = 8.dp),
-                        )
+    // Hold Flow<PagingData<Recipe>> for searched recipes
+    var searchedFlow by remember { mutableStateOf<Flow<PagingData<Recipe>>?>(null) }
+
+    // Update the searched flow when query changes
+    LaunchedEffect(searchQuery, isOnline) {
+        if (searchQuery.isNotEmpty()) {
+            searchedFlow = viewModel.searchRecipes(searchQuery, isOnline)
+        }
+    }
+
+    // Collect searchedFlow only when it's not null
+    val searchedRecipes = searchedFlow?.collectAsLazyPagingItems()
+
+    // Decide which to show
+    val recipesToShow = if (searchQuery.isEmpty()) allRecipes else searchedRecipes
+
+    Column(modifier = Modifier.fillMaxSize()) {
+
+        TextField(
+            value = searchQuery,
+            onValueChange = { viewModel.updateSearchQuery(it) },
+            placeholder = { Text("Search recipes...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Only render when recipesToShow is not null
+        recipesToShow?.let { pagingItems ->
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(pagingItems.itemCount) { index ->
+                    pagingItems[index]?.let { recipe ->
+                        RecipeItem(recipe = recipe, onClick = {
+                            navController.navigate(Screens.RecipeDetailScreen.route + "/${recipe.id}")
+                        })
                     }
                 }
-            )
-        }
-    ) {pv->
-            Column(
-                modifier = Modifier.fillMaxSize()
-                    .padding(pv),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
 
-                LazyColumn {
-                    items(recipes.itemCount) { index ->
-                        val recipe = recipes[index]
-                        if (recipe != null) {
-                            RecipeItem(recipe, onClick = {
-                                navController.navigate(Screens.RecipeDetailScreen.route+"/${recipe.id}")
-                            })
-                        }
+                // Loading
+                if (pagingItems.loadState.append is LoadState.Loading) {
+                    item {
+                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
                     }
-                    recipes.apply {
-                        when {
-                            loadState.refresh is LoadState.Loading -> {
-                                item {
-                                    CircularProgressIndicator()
-                                }
-                            }
+                }
 
-                            loadState.refresh is LoadState.Error -> {
-                                val error = loadState.refresh as LoadState.Error
-                                item {
-                                    Text("Error loading data: ${error.error.message}")
-                                }
-                            }
-                        }
+                // Error
+                val errorState = pagingItems.loadState.refresh as? LoadState.Error
+                errorState?.let {
+                    item {
+                        Text(
+                            text = "Error: ${it.error.localizedMessage}",
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
-
                 }
             }
+        }
     }
 }
+

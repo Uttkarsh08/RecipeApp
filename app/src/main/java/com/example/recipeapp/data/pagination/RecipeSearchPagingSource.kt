@@ -2,11 +2,10 @@ package com.example.recipeapp.data.pagination
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
-import com.example.recipeapp.data.api.MealApiService
+import com.example.recipeapp.data.api.RecipeApiService
 import com.example.recipeapp.domain.model.Recipe
-import com.example.recipeapp.domain.repository.RecipeRepository
 
-class RecipeSearchPagingSource(private val apiService: MealApiService, private val query: String) : PagingSource<Int, Recipe>() {
+class RecipeSearchPagingSource(private val apiService: RecipeApiService, private val query: String) : PagingSource<Int, Recipe>() {
     override fun getRefreshKey(state: PagingState<Int, Recipe>): Int? {
         return state.anchorPosition?.let {position->
             val page = state.closestPageToPosition(position)
